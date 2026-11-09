@@ -74,3 +74,9 @@ Compatibilidade com os dois tipos de processador depende das versões suportadas
 ## Atualização de automação
 
 `f1queue/automation.py` executa uma entrada por sessão e preenche quantidade/setor no simulador. CAPTCHA, sessão expirada e estado incerto suspendem ações; a observação continua e permite seguir quando a página sair desses estados. Não há solucionador de CAPTCHA, serviço externo de resolução, envio de documentos, pagamento ou confirmação de compra. O fluxo real continua exigindo validação. Campos adicionais devem ser definidos e configurados localmente, sem enviar documentos ou credenciais pelo chat.
+
+## Atualização 0.1.1 — confirmação de reabertura
+
+A confirmação após reinício aparece em todas as páginas, inclusive Minha Conta. Marque-a somente se não há uma fila real ativa. Em seguida, clique em Testar venda simulada ou Abrir login manual. O aviso de reabertura não sobrescreve mais o erro real a cada atualização do painel. Falhas distinguem Chromium ausente, perfil em uso e carregamento da página.
+
+Para atualizar pelo ZIP do GitHub, encerre o aplicativo com Ctrl+C no Terminal somente quando não houver uma fila real ativa. Extraia o ZIP atualizado em uma pasta nova, execute scripts/Instalar.command e depois scripts/Iniciar.command. As configurações e o perfil ficam na pasta Application Support do usuário; não os apague. Confira Versão 0.1.1 no rodapé do painel.

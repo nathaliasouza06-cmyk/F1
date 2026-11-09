@@ -110,6 +110,40 @@ class AsyncTests(unittest.IsolatedAsyncioTestCase):
             self.assertIs(browser.page,page)
             page.bring_to_front.assert_awaited_once()
 
+    async def test_browser_launch_failure_reports_safe_reason(self):
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, Mock, patch
+        with tempfile.TemporaryDirectory() as d:
+            store=Store(Path(d))
+            driver=SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=AsyncMock(side_effect=Exception("Executable doesn't exist at /Users/private/session-secret"))),stop=AsyncMock())
+            manager=SimpleNamespace(start=AsyncMock(return_value=driver))
+            browser=Browser(Path(d),store,Notifier(store))
+            with patch('playwright.async_api.async_playwright',return_value=manager):
+                with self.assertRaisesRegex(ValueError,'CHROMIUM_AUSENTE'):
+                    await browser.open('https://www.eventim.com.br')
+            self.assertNotIn('session-secret',str(store.history()))
+            self.assertIsNone(browser.driver)
+            self.assertFalse(browser.active)
+            driver.stop.assert_awaited_once()
+
+    async def test_recovery_acknowledgment_opens_single_context(self):
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock, patch
+        with tempfile.TemporaryDirectory() as d:
+            store=Store(Path(d))
+            store.set('browser_open',True)
+            page=SimpleNamespace(goto=AsyncMock())
+            context=SimpleNamespace(pages=[page])
+            driver=SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=AsyncMock(return_value=context)))
+            manager=SimpleNamespace(start=AsyncMock(return_value=driver))
+            browser=Browser(Path(d),store,Notifier(store))
+            with patch('playwright.async_api.async_playwright',return_value=manager):
+                await browser.open('http://127.0.0.1:8765/sim/',True,True)
+            self.assertFalse(browser.recovery_required)
+            self.assertTrue(browser.active)
+            driver.chromium.launch_persistent_context.assert_awaited_once()
+            page.goto.assert_awaited_once()
+
     async def test_restart_guard(self):
         with tempfile.TemporaryDirectory() as d:
             s=Store(Path(d));s.set('browser_open',True)

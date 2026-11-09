@@ -32,25 +32,37 @@ class Browser:
                     raise ValueError('Há uma sessão aberta. Navegue manualmente para preservar sua fila.')
                 return
             from playwright.async_api import async_playwright
-            self.driver=await async_playwright().start()
+            stage='inicialização'
             try:
+                self.driver=await async_playwright().start()
+                stage='abertura do Chromium'
                 self.context=await self.driver.chromium.launch_persistent_context(str(self.root/'browser-profile'),headless=False,no_viewport=True,ignore_default_args=['--use-mock-keychain','--password-store=basic'])
                 self.page=self.context.pages[0] if self.context.pages else await self.context.new_page()
                 self.simulator=simulator
                 self.run_id=secrets.token_hex(8)
                 self.recovery_required=False
                 self.store.set('browser_open',True)
+                stage='carregamento da página'
                 await self.page.goto(url,wait_until='domcontentloaded',timeout=45000)
                 self.active=True
                 self.store.event('navegador','Navegador preparado. Faça login manualmente, se necessário.')
-            except Exception:
+            except Exception as exc:
                 self.active=False
                 self.state=State.ERROR
-                self.store.event('falha','Falha ao abrir navegador/página. Sessão não será reiniciada automaticamente.')
-                if not self.context:
+                description=str(exc)
+                if "Executable doesn't exist" in description:
+                    reason='CHROMIUM_AUSENTE: execute Instalar.command nesta mesma pasta para instalar o navegador.'
+                elif 'SingletonLock' in description or 'ProcessSingleton' in description:
+                    reason='PERFIL_EM_USO: o perfil está aberto em outro processo. Preserve qualquer fila ativa; não apague arquivos de bloqueio.'
+                elif stage=='carregamento da página':
+                    reason='PAGINA_INDISPONIVEL: o navegador abriu, mas a página não carregou. Verifique a janela e sua conexão sem atualizar uma fila ativa.'
+                else:
+                    reason='FALHA_NAVEGADOR: não foi possível iniciar o navegador. Consulte o Histórico e informe o código exibido.'
+                self.store.event('falha',f'{reason} Etapa: {stage}; tipo: {type(exc).__name__}.')
+                if not self.context and self.driver:
                     await self.driver.stop()
                     self.driver=None
-                raise ValueError('Falha ao abrir navegador ou página; verifique instalação, conexão e navegador visível.')
+                raise ValueError(reason) from None
     async def poll(self):
         if not self.active or not self.page:
             return

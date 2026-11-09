@@ -32,8 +32,34 @@ async def main():
                 page=await context.new_page()
                 errors=[]
                 page.on('pageerror',lambda error:errors.append(str(error)))
+                async def recovering(route):
+                    response=await route.fetch()
+                    status=await response.json()
+                    status['recovery_required']=True
+                    await route.fulfill(response=response,json=status)
+                actions=[]
+                async def fail_action(route):
+                    actions.append(route.request.post_data_json)
+                    await route.fulfill(status=409,json={'detail':'CHROMIUM_AUSENTE: teste de diagnóstico'})
+                await page.route('**/api/status',recovering)
+                await page.route('**/api/action',fail_action)
                 await page.goto(f'http://127.0.0.1:{port}/#token={token}')
                 await page.get_by_text('MAC CONECTADO',exact=False).wait_for()
+                await page.get_by_role('button',name='Minha Conta',exact=True).click()
+                assert await page.locator('#recovery').is_visible()
+                await page.get_by_role('button',name='Abrir login manual',exact=True).click()
+                assert not actions
+                await page.locator('#ack').check()
+                await page.get_by_role('button',name='Abrir login manual',exact=True).click()
+                await page.get_by_text('CHROMIUM_AUSENTE: teste de diagnóstico',exact=True).wait_for()
+                assert actions[-1]['acknowledge'] is True
+                await page.evaluate('refresh()')
+                assert await page.locator('#notice').inner_text()=='CHROMIUM_AUSENTE: teste de diagnóstico'
+                await page.unroute('**/api/status',recovering)
+                await page.unroute('**/api/action',fail_action)
+                await page.evaluate('refresh()')
+                assert await page.locator('#recovery').is_hidden()
+                assert not await page.locator('#ack').is_checked()
                 await page.get_by_role('button',name='Calendário de Vendas',exact=True).click()
                 assert await page.locator('.sale').count()==4
                 await page.get_by_role('button',name='Salvar calendário',exact=True).click()
@@ -72,7 +98,7 @@ async def main():
                 assert (await observe(page,True))[1]=='Conta conectada'
                 await context.close()
                 assert not errors,errors
-                print('PASS: dashboard, calendário, layout iPhone, 7 estados, login e perfil persistente. entrada automática simulada, preenchimento, pausa CAPTCHA e deduplicação. Sem acesso Eventim.')
+                print('PASS: confirmação global, erro preservado após atualização, dashboard, calendário, layout iPhone, 7 estados, login e perfil persistente. entrada automática simulada, preenchimento, pausa CAPTCHA e deduplicação. Sem acesso Eventim.')
         finally:
             server.terminate()
             try: server.wait(timeout=15)
