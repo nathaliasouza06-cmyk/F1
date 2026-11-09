@@ -1,0 +1,15 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Fixture local — integração real</title></head><body>
+<h1>Grande Prêmio de São Paulo 2027 — fixture local</h1>
+<h2 id="available">Acesso à sala disponível</h2><button id="entry">Acessar sala de espera</button>
+<h2 id="waiting" hidden>Você está na sala de espera</h2><h2 id="queue" hidden>Você está na fila virtual</h2>
+<div id="selection" hidden><h2>Escolha seus ingressos</h2><form><label>Quantidade de ingressos <input id="quantity" type="number" value="1"></label><label>Setor prioritário <select id="sector"><option value="">Escolha</option><option>Setor A</option><option>Setor B</option></select></label><button type="submit">Confirmar pagamento</button></form></div>
+<div id="verification" hidden><label>Código de verificação <input autocomplete="one-time-code" value="NAO-LER-CODIGO"></label></div>
+<label>CPF <input value="NAO-LER-CPF"></label><input type="hidden" value="NAO-LER-TOKEN"><input type="password" value="NAO-LER-SENHA"><button>Confirmar compra</button><button>Pagar agora</button>
+<script>
+window.counts={entries:0,orders:0,quantity:0,sector:0};
+window.phase=name=>{for(const id of ['available','waiting','queue','selection'])document.getElementById(id).hidden=id!==name;document.getElementById('entry').hidden=name!=='available'};
+document.getElementById('entry').onclick=()=>{counts.entries++;phase('waiting')};
+document.querySelector('form').onsubmit=e=>{e.preventDefault();counts.orders++};
+document.getElementById('quantity').oninput=()=>counts.quantity++;
+document.getElementById('sector').onchange=()=>counts.sector++;
+</script></body></html>

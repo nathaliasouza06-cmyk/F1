@@ -60,8 +60,27 @@ async def main():
                 await page.evaluate('refresh()')
                 assert await page.locator('#recovery').is_hidden()
                 assert not await page.locator('#ack').is_checked()
+                scan_payload={'scan_id':'ui-test','page':'https://www.eventim.com.br/venda-fixture','candidates':[{'id':'0','label':'Acessar sala','kind':'entry','tag':'button'},{'id':'1','label':'Quantidade','kind':'field','tag':'input'}]}
+                configured=[]
+                async def scan_response(route):
+                    await route.fulfill(json=scan_payload)
+                async def configure_response(route):
+                    configured.append(route.request.post_data_json)
+                    await route.fulfill(json={'ok':True})
+                await page.route('**/api/real/scan',scan_response)
+                await page.route('**/api/real/configure',configure_response)
+                await page.get_by_role('button',name='Venda real',exact=True).click()
+                await page.get_by_role('button',name='Inspecionar página real',exact=True).click()
+                await page.locator('[data-role="entry"]').select_option('0')
+                await page.locator('#authorizeEntry').check()
+                await page.get_by_role('button',name='Validar controles e ativar',exact=True).click()
+                await page.get_by_text('Controles reais validados nesta sessão.',exact=False).wait_for()
+                assert configured==[{'scan_id':'ui-test','bindings':{'entry':'0'},'authorize_entry':True}]
+                assert await page.locator('#realSetup').is_hidden()
+                await page.unroute('**/api/real/scan',scan_response)
+                await page.unroute('**/api/real/configure',configure_response)
                 await page.get_by_role('button',name='Calendário de Vendas',exact=True).click()
-                assert await page.locator('.sale').count()==4
+                assert await page.locator('#salesEditor .sale').count()==4
                 await page.get_by_role('button',name='Salvar calendário',exact=True).click()
                 await page.get_by_text('Calendário salvo.',exact=True).wait_for()
                 await page.set_viewport_size({'width':390,'height':844})

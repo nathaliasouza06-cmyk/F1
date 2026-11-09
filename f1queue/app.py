@@ -56,6 +56,11 @@ class Purchase(BaseModel):
     quantity: int=Field(default=4,ge=1,le=10)
     sector: str=Field(default='',max_length=100)
 
+class RealConfiguration(BaseModel):
+    scan_id: str=Field(min_length=1,max_length=100)
+    bindings: dict[str,str]=Field(max_length=8)
+    authorize_entry: bool=False
+
 class Action(BaseModel):
     action: str
     sale_id: str='1'
@@ -144,12 +149,43 @@ def create_app(root=ROOT):
         now=datetime.now(TZ)
         sales=app.state.store.get('sales')
         upcoming=sorted([s for s in sales if sale_time(s) and countdown(s,now)>=0],key=sale_time)
-        return dict(now=now.isoformat(),sales=sales,next=upcoming[0] if upcoming else None,account=b.account,browser='Aberto' if b.context else 'Fechado',state=b.state,active=b.active,recovery_required=b.recovery_required,heartbeat=app.state.heartbeat,history=app.state.store.history(),purchase=app.state.store.get('purchase'),notifications=app.state.store.get('notifications'),integration='Eventim: adaptador não validado; entrada e verificação manuais. Web Push não configurado.')
+        return dict(now=now.isoformat(),sales=sales,next=upcoming[0] if upcoming else None,account=b.account,browser='Aberto' if b.context else 'Fechado',state=b.state,active=b.active,recovery_required=b.recovery_required,heartbeat=app.state.heartbeat,history=app.state.store.history(),purchase=app.state.store.get('purchase'),real=b.real.status(),notifications=app.state.store.get('notifications'),integration='Venda real: controles configuráveis e validados localmente na sessão do Mac. Fluxo Eventim não validado independentemente. CAPTCHA/MFA manuais. Web Push não configurado.')
     @app.put('/api/sales')
     async def save_sales(sales:list[Sale]):
         if len(sales)>50 or len({s.id for s in sales})!=len(sales): raise HTTPException(422,'IDs duplicados ou calendário muito grande')
         app.state.store.set('sales',[s.model_dump() for s in sales])
         app.state.store.event('configuração','Calendário atualizado')
+        return {'ok':True}
+    def real_page():
+        browser=app.state.browser
+        if not browser.page or browser.page.is_closed() or browser.simulator:
+            raise HTTPException(409,'Abra a Eventim real pelo aplicativo antes de configurar. O simulador não configura a venda real.')
+        return browser
+    @app.post('/api/real/scan')
+    async def real_scan():
+        browser=real_page()
+        try:
+            return await browser.real.scan(browser.page)
+        except ValueError as exc:
+            raise HTTPException(409,str(exc))
+        except Exception:
+            raise HTTPException(409,'A página não pôde ser inspecionada. Confira a aba e aguarde o carregamento; não atualize uma fila ativa.')
+    @app.post('/api/real/configure')
+    async def real_configure(body:RealConfiguration):
+        browser=real_page()
+        try:
+            result=await browser.real.configure(browser.page,body.scan_id,body.bindings,body.authorize_entry)
+            browser.active=True
+            return result
+        except ValueError as exc:
+            raise HTTPException(409,str(exc))
+        except Exception:
+            raise HTTPException(409,'A página mudou durante a configuração. Inspecione novamente antes de habilitar ações.')
+    @app.post('/api/real/pause')
+    async def real_pause():
+        browser=app.state.browser
+        browser.real.paused=True
+        browser.real.message='Ações reais pausadas. A sessão permanece aberta e a observação continua.'
         return {'ok':True}
     @app.put('/api/purchase')
     async def purchase(body:Purchase):

@@ -68,6 +68,26 @@ class AsyncTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(response.status_code,200)
                 app.state.browser.open.assert_awaited_once_with('https://www.eventim.com.br/',False,True)
 
+    async def test_real_api_requires_live_browser_and_can_pause(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock, AsyncMock
+        with tempfile.TemporaryDirectory() as d:
+            app=create_app(Path(d))
+            async with app.router.lifespan_context(app), httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
+                h={'Authorization':'Bearer '+app.state.token}
+                self.assertEqual((await client.post('/api/real/scan',headers=h)).status_code,409)
+                browser=app.state.browser
+                browser.page=SimpleNamespace(is_closed=Mock(return_value=False))
+                browser.simulator=True
+                self.assertEqual((await client.post('/api/real/scan',headers=h)).status_code,409)
+                browser.simulator=False
+                browser.real.scan=AsyncMock(return_value={'scan_id':'local','candidates':[]})
+                self.assertEqual((await client.post('/api/real/scan',headers=h)).status_code,200)
+                browser.real.paused=False
+                self.assertEqual((await client.post('/api/real/pause',headers=h)).status_code,200)
+                self.assertTrue(browser.real.paused)
+                self.assertEqual((await client.post('/api/real/configure',headers=h,json={'scan_id':'old','bindings':{'entry':'0'},'authorize_entry':True})).status_code,409)
+
     async def test_notification_dedup(self):
         with tempfile.TemporaryDirectory() as d:
             s=Store(Path(d));n=Notifier(s)

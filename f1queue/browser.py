@@ -2,16 +2,20 @@ import asyncio
 import secrets
 from .monitor import State, PROTECTED, observe
 from .automation import Automation
+from .real import RealAdapter
 
 class Browser:
     def __init__(self, root, store, notifier):
         self.automation=Automation(store)
+        self.real=RealAdapter(store)
+        self.poll_lock=asyncio.Lock()
         self.root=root
         self.store=store
         self.notifier=notifier
         self.context=None
         self.page=None
         self.driver=None
+        self.state_sequence=0
         self.state=State.UNKNOWN
         self.account='Verificação necessária'
         self.active=False
@@ -64,20 +68,30 @@ class Browser:
                     self.driver=None
                 raise ValueError(reason) from None
     async def poll(self):
+        async with self.poll_lock:
+            await self._poll()
+
+    async def _poll(self):
         if not self.active or not self.page:
             return
         try:
-            state, account=await observe(self.page,self.simulator)
+            state, account=await observe(self.page,True) if self.simulator else await self.real.observe(self.page)
             self.account=account
             if state != self.state:
                 self.state=state
+                self.state_sequence+=1
                 self.store.event('estado',str(state))
-                await self.notifier.send(f'state:{self.run_id}:{state}',self.modality,str(state))
+                await self.notifier.send(f'state:{self.run_id}:{self.state_sequence}:{state}',self.modality,str(state))
                 if state == State.WAIT_AVAILABLE and not self.simulator:
-                    await self.notifier.send(f'manual:{self.run_id}',self.modality,'Entrada manual necessária: fluxo real ainda não validado.')
+                    await self.notifier.send(f'entry:{self.run_id}',self.modality,'Entrada disponível em controle configurado localmente. Verifique o resultado na janela real.')
+                if state == State.HUMAN:
+                    await self.page.bring_to_front()
                 if state == State.SELECT:
                     await self.page.bring_to_front()
-            await self.automation.step(self.page,state,self.simulator,self.run_id)
+            if self.simulator:
+                await self.automation.step(self.page,state,True,self.run_id)
+            else:
+                await self.real.step(self.page,state,self.run_id)
         except Exception:
             self.state=State.ERROR
             await self.notifier.send(f'connection:{self.run_id}',self.modality,'Falha de observação ou ação. Verifique o navegador sem atualizar a fila; nenhuma ação incerta será repetida.')
