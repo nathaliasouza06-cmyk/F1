@@ -169,7 +169,10 @@ def create_app(root=ROOT):
             elif body.action=='simulate':
                 b.modality='VENDA SIMULADA'
                 await b.open(f'http://127.0.0.1:{PORT}/sim/',True,body.acknowledge)
-            elif body.action in {'prepare','open','login'}:
+            elif body.action=='login':
+                b.modality='Minha Conta Eventim'
+                await b.open('https://www.eventim.com.br/',False,body.acknowledge)
+            elif body.action in {'prepare','open'}:
                 sale=next((s for s in app.state.store.get('sales') if s['id']==body.sale_id),None)
                 if not sale: raise ValueError('Modalidade não encontrada')
                 b.modality=sale['name']

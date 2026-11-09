@@ -80,3 +80,7 @@ Compatibilidade com os dois tipos de processador depende das versões suportadas
 A confirmação após reinício aparece em todas as páginas, inclusive Minha Conta. Marque-a somente se não há uma fila real ativa. Em seguida, clique em Testar venda simulada ou Abrir login manual. O aviso de reabertura não sobrescreve mais o erro real a cada atualização do painel. Falhas distinguem Chromium ausente, perfil em uso e carregamento da página.
 
 Para atualizar pelo ZIP do GitHub, encerre o aplicativo com Ctrl+C no Terminal somente quando não houver uma fila real ativa. Extraia o ZIP atualizado em uma pasta nova, execute scripts/Instalar.command e depois scripts/Iniciar.command. As configurações e o perfil ficam na pasta Application Support do usuário; não os apague. Confira Versão 0.1.1 no rodapé do painel.
+
+## Atualização 0.1.2 — login independente da campanha
+
+Minha Conta abre a página inicial oficial https://www.eventim.com.br/, independentemente da URL ou da existência de uma venda no calendário. Uma campanha indisponível não precisa impedir seu login. Se já houver uma aba controlada em outra página, o aplicativo preserva a sessão e pede navegação manual. A captura da usuária mostrou página não encontrada na campanha /campaign/f1saopaulo. A busca na Eventim ainda retorna conteúdo de 2026 nesse endereço; não foi confirmada outra URL de compra para 2027. As URLs de vendas não são substituídas por links presumidos.

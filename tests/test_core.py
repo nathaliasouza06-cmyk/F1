@@ -56,6 +56,18 @@ class AsyncTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await client.get('/sim/')).status_code,200)
         self.assertTrue((self.root/'diagnostic.jsonl').exists())
 
+    async def test_login_uses_official_home_independent_of_sale(self):
+        from unittest.mock import AsyncMock
+        with tempfile.TemporaryDirectory() as d:
+            app=create_app(Path(d))
+            async with app.router.lifespan_context(app), httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
+                app.state.store.set('sales',[])
+                app.state.browser.open=AsyncMock()
+                headers={'Authorization':'Bearer '+app.state.token}
+                response=await client.post('/api/action',headers=headers,json={'action':'login','acknowledge':True})
+                self.assertEqual(response.status_code,200)
+                app.state.browser.open.assert_awaited_once_with('https://www.eventim.com.br/',False,True)
+
     async def test_notification_dedup(self):
         with tempfile.TemporaryDirectory() as d:
             s=Store(Path(d));n=Notifier(s)

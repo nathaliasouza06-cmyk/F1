@@ -16,3 +16,5 @@ Comandos reproduzíveis estão no README.md.
 Atualização validada: entrada automática na sala simulada; preenchimento de quantidade/setor; pausa durante CAPTCHA simulado; proteção contra repetição que sobrescreva edição manual. Os 9 testes anteriores e a integração Chromium passaram novamente. Não houve acesso à Eventim.
 
 09/11/2026 — versão 0.1.1: 11 testes unitários/HTTP passaram. A integração Chromium confirmou a confirmação acessível em Minha Conta, ausência de chamada de abertura sem confirmação e preservação do erro após atualizar o status. Também validou as funcionalidades anteriores. Mensagens de diagnóstico não expõem caminhos ou conteúdo bruto das exceções. Não foi possível reproduzir diretamente o erro de abertura no Mac da usuária; a atualização corrige o painel e permite identificar a causa caso persista.
+
+09/11/2026 — versão 0.1.2: 12 testes unitários/HTTP passaram, incluindo login pela página inicial oficial mesmo sem vendas cadastradas. Não houve requisições à Eventim na suíte. A pesquisa pública do endereço de campanha não constitui validação de um fluxo de compra 2027.
